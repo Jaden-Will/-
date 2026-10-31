@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>A Halloween Surprise ♥</title>
+<style>
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: #090914;
+    overflow: hidden;
+    font-family: Arial, "Microsoft YaHei", "PingFang SC", sans-serif;
+  }
+  body {
+    display: grid;
+    place-items: center;
+  }
+  canvas {
+    width: min(100vw, calc(100vh * 900 / 650));
+    height: min(100vh, calc(100vw * 650 / 900));
+    display: block;
+    cursor: pointer;
+    box-shadow: 0 0 60px rgba(0,0,0,.45);
+  }
+</style>
+</head>
+<body>
+<canvas id="game" width="900" height="650"></canvas>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+const W = 900, H = 650;
+
+let swing = 0;
+let night = 0;
+let openAmount = 0;
+let tick = 0;
+let clicked = false;
+let showMessage = false;
+const particles = [];
+
+function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
+function mix(a, b, t){
+  t = clamp(t, 0, 1);
+  return [
+    Math.round(a[0]*(1-t)+b[0]*t),
+    Math.round(a[1]*(1-t)+b[1]*t),
+    Math.round(a[2]*(1-t)+b[2]*t)
+  ];
+}
+function rgb(c, a=1){ return `rgba(${c[0]},${c[1]},${c[2]},${a})`; }
+
+class Particle {
+  constructor(x, y, color, symbol){
+    this.x=x; this.y=y; this.color=color; this.symbol=symbol;
+    this.size=5+Math.random()*13;
+    this.life=1;
+    const angle=Math.random()*Math.PI*2;
+    const speed=1+Math.random()*5;
+    this.vx=Math.cos(angle)*speed;
+    this.vy=Math.sin(angle)*speed-2;
+  }
+  update(){
+    this.x += this.vx;
+    this.y += this.vy;
+    this.vy += 0.045;
+    this.vx *= 0.985;
+    this.life -= 0.012;
+  }
+}
+
+function burst(x,y,count){
+  const colors = [
+    [255,90,60],[255,190,60],[255,100,190],
+    [180,130,255],[120,230,255],[255,255,255]
+  ];
+  const symbols = ["*", "✦", "♥", "•"];
+  for(let i=0;i<count;i++){
+    particles.push(new Particle(
+      x,y,
+      colors[Math.floor(Math.random()*colors.length)],
+      symbols[Math.floor(Math.random()*symbols.length)]
+    ));
+  }
+}
+
+function roundRect(x,y,w,h,r,fill=true,stroke=false){
+  ctx.beginPath();
+  ctx.roundRect(x,y,w,h,r);
+  if(fill) ctx.fill();
+  if(stroke) ctx.stroke();
+}
+
+function centerText(text, y){
+  const m = ctx.measureText(text);
+  ctx.fillText(text, (W-m.width)/2, y);
+}
+
+function drawRoom(){
+  const top = mix([85,48,70],[10,12,39],night);
+  const bottom = mix([155,91,63],[28,23,53],night);
+  const grad = ctx.createLinearGradient(0,0,0,650);
+  grad.addColorStop(0,rgb(top));
+  grad.addColorStop(1,rgb(bottom));
+  ctx.fillStyle=grad; ctx.fillRect(0,0,W,H);
+
+  ctx.strokeStyle="rgba(255,190,115,.10)";
+  for(let x=30;x<W;x+=55){
+    ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,470); ctx.stroke();
+  }
+
+  const floor = ctx.createLinearGradient(0,480,0,650);
+  floor.addColorStop(0,"rgb(95,53,49)");
+  floor.addColorStop(1,"rgb(35,25,42)");
+  ctx.fillStyle=floor; ctx.fillRect(0,480,W,170);
+
+  ctx.strokeStyle="rgba(255,210,150,.14)";
+  for(let y=500;y<650;y+=32){
+    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke();
+  }
+
+  ctx.fillStyle="rgba(255,183,80,.20)"; ctx.beginPath(); ctx.ellipse(125,200,75,100,0,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle="rgb(255,190,105)"; ctx.beginPath(); ctx.ellipse(124,160,24,35,0,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle="rgb(255,225,165)"; ctx.beginPath(); ctx.ellipse(124,158,14,22.5,0,0,Math.PI*2); ctx.fill();
+
+  ctx.fillStyle="rgb(95,31,56)"; roundRect(190,465,520,150,45,true,false);
+  ctx.strokeStyle="rgba(220,139,91,.5)"; ctx.lineWidth=2; roundRect(205,480,490,120,35,false,true);
+}
+
+function drawWindow(){
+  const x=570,y=65,w=270,h=320;
+
+  ctx.fillStyle="rgb(48,28,42)"; roundRect(x-12,y-12,w+24,h+24,18,true,false);
+
+  const skyTop=mix([235,105,81],[5,9,36],night);
+  const skyBottom=mix([91,56,112],[17,25,65],night);
+  const sky=ctx.createLinearGradient(x,y,x,y+h);
+  sky.addColorStop(0,rgb(skyTop));
+  sky.addColorStop(1,rgb(skyBottom));
+  ctx.fillStyle=sky; ctx.fillRect(x,y,w,h);
+
+  if(night>0.15){
+    for(let i=0;i<65;i++){
+      const sx=x+(i*47+17)%w;
+      const sy=y+(i*31+19)%210;
+      const alpha=night;
+      ctx.fillStyle=`rgba(255,240,200,${alpha})`;
+      const r=i%5===0?3:1;
+      ctx.beginPath(); ctx.arc(sx,sy,r/2,0,Math.PI*2); ctx.fill();
+    }
+  }
+
+  const moonX=x+180, moonY=y+40;
+  ctx.fillStyle="rgb(255,241,196)";
+  ctx.beginPath(); ctx.arc(moonX+24,moonY+24,24,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle=rgb(mix([235,105,81],[5,9,36],night));
+  ctx.beginPath(); ctx.arc(moonX+8.5,moonY+14.5,21.5,0,Math.PI*2); ctx.fill();
+
+  ctx.fillStyle="rgb(23,23,48)";
+  ctx.fillRect(x,y+255,w,65);
+  const hx=[x,x+30,x+55,x+75,x+100,x+130,x+160,x+190,x+220,x+245,x+w];
+  const hy=[y+275,y+260,y+275,y+250,y+275,y+258,y+278,y+255,y+270,y+250,y+270];
+  ctx.beginPath(); ctx.moveTo(hx[0],hy[0]);
+  for(let i=1;i<hx.length;i++) ctx.lineTo(hx[i],hy[i]);
+  ctx.closePath(); ctx.fill();
+
+  ctx.strokeStyle="rgb(70,39,48)"; ctx.lineWidth=9;
+  ctx.beginPath(); ctx.moveTo(x+w/2,y); ctx.lineTo(x+w/2,y+h); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x,y+170); ctx.lineTo(x+w,y+170); ctx.stroke();
+
+  ctx.fillStyle="rgb(104,34,60)";
+  ctx.beginPath(); ctx.moveTo(x-20,y-10); ctx.lineTo(x+48,y-10); ctx.lineTo(x+35,y+225); ctx.lineTo(x+10,y+190); ctx.lineTo(x-20,y+270); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(x+w-48,y-10); ctx.lineTo(x+w+20,y-10); ctx.lineTo(x+w+20,y+270); ctx.lineTo(x+w-5,y+190); ctx.lineTo(x+w-35,y+225); ctx.closePath(); ctx.fill();
+}
+
+function drawPumpkin(x,y,size){
+  ctx.fillStyle="rgb(240,111,34)";
+  ctx.beginPath(); ctx.ellipse(x+size/2,y+5+size*3/8,size/2,size*3/8,0,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(x+size/2,y+size*3/8,size/4,size*3/8,0,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(x+size*3/4,y+5+size*3/8,size/4,size*3/8,0,0,Math.PI*2); ctx.fill();
+
+  ctx.fillStyle="rgb(67,108,49)"; roundRect(x+size/2-4,y-8,9,18,5,true,false);
+  ctx.fillStyle="rgb(75,31,31)";
+  const eye=Math.max(4,size/8);
+  ctx.beginPath(); ctx.moveTo(x+size/4,y+size/3); ctx.lineTo(x+size/4+eye,y+size/3); ctx.lineTo(x+size/4+eye/2,y+size/3+eye); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(x+size*2/3,y+size/3); ctx.lineTo(x+size*2/3+eye,y+size/3); ctx.lineTo(x+size*2/3+eye/2,y+size/3+eye); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle="rgb(75,31,31)"; ctx.lineWidth=2;
+  ctx.beginPath();
+  ctx.arc(x+size/2,y+size*5/8,size/4,0,Math.PI);
+  ctx.stroke();
+}
+
+function drawDecorations(){
+  ctx.fillStyle="rgb(35,22,39)";
+  ctx.strokeStyle="rgb(35,22,39)";
+  for(let i=0;i<3;i++){
+    const x=280+i*70, y=95+(i%2)*24;
+    ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,y); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(x,y+6,10,6,0,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(x-10,y+4); ctx.lineTo(x-24,y+15); ctx.lineTo(x-18,y+15); ctx.lineTo(x-5,y+9); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(x+10,y+4); ctx.lineTo(x+24,y+15); ctx.lineTo(x+18,y+15); ctx.lineTo(x+5,y+9); ctx.closePath(); ctx.fill();
+  }
+
+  drawPumpkin(55,510,72);
+  drawPumpkin(770,500,65);
+
+  ctx.fillStyle="rgba(245,235,224,.86)";
+  ctx.beginPath(); ctx.arc(757.5,427.5,17.5,0,Math.PI*2); ctx.fill();
+  ctx.fillRect(740,425,35,38);
+  ctx.fillStyle="rgb(39,31,51)";
+  ctx.beginPath(); ctx.ellipse(750.5,426.5,2.5,3.5,0,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(764.5,426.5,2.5,3.5,0,0,Math.PI*2); ctx.fill();
+}
+
+function drawGift(){
+  ctx.save();
+  const angle = clicked ? swing*(1-openAmount) : swing;
+  ctx.translate(450,430);
+  ctx.rotate(angle);
+  ctx.translate(-450,-430);
+
+  ctx.fillStyle="rgba(0,0,0,.29)";
+  ctx.beginPath(); ctx.ellipse(450,502.5,110,17.5,0,0,Math.PI*2); ctx.fill();
+
+  const giftGrad=ctx.createLinearGradient(350,380,530,490);
+  giftGrad.addColorStop(0,"rgb(171,29,76)");
+  giftGrad.addColorStop(1,"rgb(90,16,54)");
+  ctx.fillStyle=giftGrad;
+  roundRect(355,385,190,120,12,true,false);
+
+  ctx.fillStyle="rgb(255,205,106)";
+  ctx.fillRect(433,385,32,120);
+  ctx.fillRect(355,425,190,25);
+
+  ctx.strokeStyle="rgb(255,205,106)"; ctx.lineWidth=7;
+  ctx.beginPath(); ctx.arc(431,367.5,23,0,Math.PI*1.5); ctx.stroke();
+  ctx.beginPath(); ctx.arc(468,367.5,23,-Math.PI/2,Math.PI); ctx.stroke();
+  ctx.fillStyle="rgb(255,205,106)";
+  ctx.beginPath(); ctx.arc(447,374,9,0,Math.PI*2); ctx.fill();
+
+  if(clicked){
+    const lift=openAmount*115;
+    ctx.fillStyle="rgb(125,15,55)";
+    roundRect(345,365-lift,210,28,8,true,false);
+    ctx.fillStyle="rgb(255,205,106)";
+    ctx.fillRect(433,365-lift,32,28);
+
+    if(openAmount>0.25){
+      const alpha=Math.max(0,0.51*Math.sin(openAmount*Math.PI));
+      ctx.fillStyle=`rgba(255,223,125,${alpha})`;
+      ctx.beginPath(); ctx.ellipse(450,395,75,65,0,0,Math.PI*2); ctx.fill();
+    }
+  } else {
+    ctx.fillStyle="rgb(255,239,192)";
+    ctx.font='bold 15px Georgia, "Times New Roman", serif';
+    ctx.fillText("FOR YOU ♥",395,470);
+  }
+  ctx.restore();
+}
+
+function drawParticles(){
+  for(const p of particles){
+    const a=clamp(p.life,0,1);
+    ctx.fillStyle=rgb(p.color,a);
+    ctx.font=`bold ${Math.floor(p.size)+8}px Georgia, serif`;
+    ctx.fillText(p.symbol,p.x,p.y);
+  }
+}
+
+function drawInstructions(){
+  ctx.fillStyle="rgb(255,239,210)";
+  ctx.font='bold 25px Georgia, "Times New Roman", serif';
+  centerText("A Little Halloween Surprise",575);
+
+  ctx.fillStyle="rgb(255,212,165)";
+  ctx.font="16px Arial, sans-serif";
+  centerText("Click the gift to open your surprise ♥",607);
+}
+
+function drawMessage(){
+  ctx.fillStyle=`rgba(5,5,25,${0.41*night})`;
+  ctx.fillRect(0,0,W,H);
+
+  ctx.fillStyle="rgba(25,15,45,.84)";
+  roundRect(165,175,570,225,35,true,false);
+
+  ctx.strokeStyle="rgba(255,192,110,.86)";
+  ctx.lineWidth=2;
+  roundRect(165,175,570,225,35,false,true);
+
+  ctx.fillStyle="rgb(255,170,205)";
+  ctx.font='bold 39px Georgia, "Microsoft YaHei", serif';
+  centerText("万圣节快乐呀🎃!",235);
+
+  ctx.fillStyle="rgb(255,226,177)";
+  ctx.font='21px Arial, "Microsoft YaHei", sans-serif';
+  centerText("至我最爱的人 ♥",282);
+
+  ctx.fillStyle="white";
+  ctx.font='17px Arial, "Microsoft YaHei", sans-serif';
+  centerText("虽然我们离的这么远,",325);
+  centerText("但对我来说你就是全世界最好的人...我一生的挚爱",354);
+
+  ctx.fillStyle="rgb(255,167,210)";
+  ctx.font='bold 23px Georgia, "Microsoft YaHei", serif';
+  centerText("希望我的宝宝身体健康万事顺遂 ♥",382);
+
+  ctx.fillStyle="rgb(255,220,150)";
+  ctx.font='14px Arial, "Microsoft YaHei", sans-serif';
+  centerText("秦秦宝宝mua! ✨",435);
+}
+
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  drawRoom();
+  drawWindow();
+  drawDecorations();
+  drawGift();
+  drawParticles();
+  if(showMessage) drawMessage(); else drawInstructions();
+}
+
+function update(){
+  tick++;
+  swing=Math.sin(tick*0.07)*0.09;
+
+  if(clicked){
+    night=Math.min(1,night+0.006);
+    openAmount=Math.min(1,openAmount+0.025);
+    if(tick%5===0){
+      burst(350+Math.floor(Math.random()*200),180+Math.floor(Math.random()*220),3);
+    }
+  }
+  for(const p of particles) p.update();
+  for(let i=particles.length-1;i>=0;i--){
+    if(particles[i].life<=0) particles.splice(i,1);
+  }
+}
+
+function loop(){
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+canvas.addEventListener("click", e => {
+  if(clicked) return;
+  const rect=canvas.getBoundingClientRect();
+  const x=(e.clientX-rect.left)*(canvas.width/rect.width);
+  const y=(e.clientY-rect.top)*(canvas.height/rect.height);
+  if(x>=320 && x<=580 && y>=310 && y<=550){
+    clicked=true;
+    showMessage=true;
+    openAmount=0;
+    burst(450,390,130);
+    burst(450,350,80);
+  }
+});
+
+loop();
+</script>
+</body>
+</html>
